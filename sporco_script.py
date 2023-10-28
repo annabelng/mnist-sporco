@@ -2,6 +2,7 @@
 # more powerful than without it 
 
 # import statements
+
 from __future__ import division
 from __future__ import print_function
 from builtins import input
@@ -13,6 +14,7 @@ from sporco.dictlrn import dictlrn
 from sporco import cnvrep
 from sporco import util
 from sporco import signal
+from tqdm import tqdm
 from sporco import plot
 import platform
 from scipy.io import loadmat
@@ -38,53 +40,56 @@ def train_dictionary(train_ims):
     # aka training on 100 random images at a time
     # and then refreshing every loop 
 
-    # initialize empty dictionary 
-    D0 = np.random.randn(12,12,56)
-
-    # use np.randint to get 100 random indices
-    random_indices = np.random.randint(0, 10000, size=100)
-
-
-
-    S = np.transpose(train_ims[:1000,:,:],(1,2,0))
 
     # initialize empty dictionary 
-    D0 = np.random.randn(12,12,56)
+    D0 = np.random.randn(12,12,16)
 
-    cri = cnvrep.CDU_ConvRepIndexing(D0.shape, S)
-    wl1 = np.ones((1,)*4 + (D0.shape[2:]), dtype=np.float32)
-    wgr = np.zeros((D0.shape[2]), dtype=np.float32)
-    wgr[0] = 1.0
-    lmbda = 0.25 # 0.1, 1, 10, 1000
-    mu = 0   
-    optx = cbpdn.ConvBPDNGradReg.Options({'Verbose': False, 'MaxMainIter': 1,
-                'rho': 20.0*lmbda + 0.5, 'AutoRho': {'Period': 10,
-                'AutoScaling': False, 'RsdlRatio': 10.0, 'Scaling': 2.0,
-                'RsdlTarget': 1.0}, 'HighMemSolve': True, 'AuxVarObj': False,
-                'L1Weight': wl1, 'GradWeight': wgr})
-    optd = ccmod.ConvCnstrMODOptions({'Verbose': False, 'MaxMainIter': 1,
-                'rho': 5.0*cri.K, 'AutoRho': {'Period': 10, 'AutoScaling': False,
-                'RsdlRatio': 10.0, 'Scaling': 2.0, 'RsdlTarget': 1.0}}, 
-                method='cns')
+    for i in tqdm(range(10), desc = 'training'):
+        print(i)
+        S = np.transpose(train_ims[:1000,:,:],(1,2,0))
 
-    D0n = cnvrep.Pcn(D0, D0.shape, cri.Nv, dimN=2, dimC=0, crp=True,
-                    zm=optd['ZeroMean'])
+        cri = cnvrep.CDU_ConvRepIndexing(D0.shape, S)
+        wl1 = np.ones((1,)*4 + (D0.shape[2:]), dtype=np.float32)
+        wgr = np.zeros((D0.shape[2]), dtype=np.float32)
+        wgr[0] = 1.0
+        lmbda = 0.25 # 0.1, 1, 10, 1000
+        mu = 0   
+        optx = cbpdn.ConvBPDNGradReg.Options({'Verbose': False, 'MaxMainIter': 1,
+                    'rho': 20.0*lmbda + 0.5, 'AutoRho': {'Period': 10,
+                    'AutoScaling': False, 'RsdlRatio': 10.0, 'Scaling': 2.0,
+                    'RsdlTarget': 1.0}, 'HighMemSolve': True, 'AuxVarObj': False,
+                    'L1Weight': wl1, 'GradWeight': wgr})
+        optd = ccmod.ConvCnstrMODOptions({'Verbose': False, 'MaxMainIter': 1,
+                    'rho': 5.0*cri.K, 'AutoRho': {'Period': 10, 'AutoScaling': False,
+                    'RsdlRatio': 10.0, 'Scaling': 2.0, 'RsdlTarget': 1.0}}, 
+                    method='cns')
 
-    optd.update({'Y0': cnvrep.zpad(cnvrep.stdformD(D0n, cri.Cd, cri.M), cri.Nv),
-                'U0': np.zeros(cri.shpD + (cri.K,))})
-    print("loaded contstants")
+        D0n = cnvrep.Pcn(D0, D0.shape, cri.Nv, dimN=2, dimC=0, crp=True,
+                        zm=optd['ZeroMean'])
 
-    # training chunk
-    # put in for loop and update S to grab random images outside of for loop 
-    # 50k iterations? 
-    xstep = cbpdn.ConvBPDNGradReg(D0n, S, lmbda, mu, optx)
-    dstep = ccmod.ConvCnstrMOD(None, S, D0.shape, optd, method='cns')
-    opt = dictlrn.DictLearn.Options({'Verbose': False, 'MaxMainIter': 50000})
-    d = dictlrn.DictLearn(xstep, dstep, opt)
-    D1 = d.solve()
-    D0 = D1.squeeze()
+        optd.update({'Y0': cnvrep.zpad(cnvrep.stdformD(D0n, cri.Cd, cri.M), cri.Nv),
+                    'U0': np.zeros(cri.shpD + (cri.K,))})
+        print("loaded contstants")
 
-    print("DictLearn solve time: %.2fs" % d.timer.elapsed('solve'), "\n")
+        # training chunk
+        # put in for loop and update S to grab random images outside of for loop 
+        # 50k iterations? 
+        xstep = cbpdn.ConvBPDNGradReg(D0n, S, lmbda, mu, optx)
+        dstep = ccmod.ConvCnstrMOD(None, S, D0.shape, optd, method='cns')
+
+        for j in tqdm(range(5000), desc=f'Iteration {i}', leave=False):
+            opt = dictlrn.DictLearn.Options({'Verbose': False, 'MaxMainIter': 1})
+            d = dictlrn.DictLearn(xstep, dstep, opt)
+            D1 = d.solve()
+            D0 = D1.squeeze()
+
+        #opt = dictlrn.DictLearn.Options({'Verbose': False, 'MaxMainIter': 5000})
+        #d = dictlrn.DictLearn(xstep, dstep, opt)
+        #D1 = d.solve()
+        #D0 = D1.squeeze()
+        np.savez('/dict_constants/d1_' + str(i) + '.npz', d1=D1)
+
+        print("DictLearn solve time: %.2fs" % d.timer.elapsed('solve'), "\n")
     return D0, S, D1
 
 def batch_train_dictionary(train_ims):
@@ -134,13 +139,16 @@ def batch_train_dictionary(train_ims):
         dstep = ccmod.ConvCnstrMOD(None, S, D0.shape, optd, method='cns')
 
         # change training loop to just include S and opt?? 
-        opt = dictlrn.DictLearn.Options({'Verbose': False, 'MaxMainIter': 1})
-        d = dictlrn.DictLearn(xstep, dstep, opt)
-        D1 = d.solve()
-        D0 = D1.squeeze()
-
+        # 8, 16, 32
+        for i in range(10):
+            opt = dictlrn.DictLearn.Options({'Verbose': False, 'MaxMainIter': 50000})
+            d = dictlrn.DictLearn(xstep, dstep, opt)
+            D1 = d.solve()
+            D0 = D1.squeeze()
+            # save
         if i % 500 == 0:
             np.savez('d1_' + str(i) + '.npz', d1=D1)
+        save_visualization_as_png(D0, D1, str(i))
 
     print("DictLearn solve time: %.2fs" % d.timer.elapsed('solve'), "\n")
     return D0, S, D1
@@ -169,5 +177,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-
