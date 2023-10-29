@@ -44,7 +44,7 @@ def train_dictionary(train_ims):
     # initialize empty dictionary 
     D0 = np.random.randn(12,12,16)
 
-    for i in tqdm(range(10), desc = 'training'):
+    for i in tqdm(range(50), desc = 'training'):
         print(i)
         S = np.transpose(train_ims[:1000,:,:],(1,2,0))
 
@@ -69,7 +69,7 @@ def train_dictionary(train_ims):
 
         optd.update({'Y0': cnvrep.zpad(cnvrep.stdformD(D0n, cri.Cd, cri.M), cri.Nv),
                     'U0': np.zeros(cri.shpD + (cri.K,))})
-        print("loaded contstants")
+        print("loaded constants")
 
         # training chunk
         # put in for loop and update S to grab random images outside of for loop 
@@ -77,7 +77,7 @@ def train_dictionary(train_ims):
         xstep = cbpdn.ConvBPDNGradReg(D0n, S, lmbda, mu, optx)
         dstep = ccmod.ConvCnstrMOD(None, S, D0.shape, optd, method='cns')
 
-        for j in tqdm(range(5000), desc=f'Iteration {i}', leave=False):
+        for j in tqdm(range(1000), desc=f'Iteration {i}', leave=False):
             opt = dictlrn.DictLearn.Options({'Verbose': False, 'MaxMainIter': 1})
             d = dictlrn.DictLearn(xstep, dstep, opt)
             D1 = d.solve()
@@ -87,7 +87,8 @@ def train_dictionary(train_ims):
         #d = dictlrn.DictLearn(xstep, dstep, opt)
         #D1 = d.solve()
         #D0 = D1.squeeze()
-        np.savez('/dict_constants/d1_' + str(i) + '.npz', d1=D1)
+        np.savez('dict_constants/d1_' + str(i*1000) + '.npz', d1=D1)
+        save_visualization_as_png(D0, D1, '8_features' + str(i*1000))
 
         print("DictLearn solve time: %.2fs" % d.timer.elapsed('solve'), "\n")
     return D0, S, D1
