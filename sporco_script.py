@@ -33,7 +33,7 @@ def load_images():
     print("loaded images")
     return train_ims, test_ims
 
-def train_dictionary(train_ims):
+def train_dictionary(train_ims, prev_weights = None, curr_iter = 0):
     # for batch gradient keep updating S randomly???
     # use np.randint to get 100 random indices
     # pass these random ints into S to get the 100 images
@@ -42,9 +42,13 @@ def train_dictionary(train_ims):
 
 
     # initialize empty dictionary 
-    D0 = np.random.randn(12,12,16)
+    if prev_weights:
+        D0 = np.load(prev_weights)['d1'].squeeze()
+        print(D0.shape)
+    else:
+        D0 = np.random.randn(12,12,16)
 
-    for i in tqdm(range(50), desc = 'training'):
+    for i in tqdm(range(20), desc = 'training'):
         print(i)
         S = np.transpose(train_ims[:1000,:,:],(1,2,0))
 
@@ -77,7 +81,7 @@ def train_dictionary(train_ims):
         xstep = cbpdn.ConvBPDNGradReg(D0n, S, lmbda, mu, optx)
         dstep = ccmod.ConvCnstrMOD(None, S, D0.shape, optd, method='cns')
 
-        for j in tqdm(range(1000), desc=f'Iteration {i}', leave=False):
+        for j in tqdm(range(2500), desc=f'Iteration {i}', leave=False):
             opt = dictlrn.DictLearn.Options({'Verbose': False, 'MaxMainIter': 1})
             d = dictlrn.DictLearn(xstep, dstep, opt)
             D1 = d.solve()
@@ -87,8 +91,8 @@ def train_dictionary(train_ims):
         #d = dictlrn.DictLearn(xstep, dstep, opt)
         #D1 = d.solve()
         #D0 = D1.squeeze()
-        np.savez('dict_constants/d1_' + str(i*1000) + '.npz', d1=D1)
-        save_visualization_as_png(D0, D1, '8_features' + str(i*1000))
+        np.savez('dict_constants/d1_' + str(curr_iter + i*2500) + '.npz', d1=D1)
+        save_visualization_as_png(D0, D1, 'features/8_features' + str(i*2500))
 
         print("DictLearn solve time: %.2fs" % d.timer.elapsed('solve'), "\n")
     return D0, S, D1
@@ -173,7 +177,7 @@ def save_visualization_as_png(D0, D1, output_path):
 
 def main():
     train_ims, test_ims = load_images()
-    D0, S, D1 = train_dictionary(train_ims)
+    D0, S, D1 = train_dictionary(train_ims, 'dict_constants/d1_34000.npz',34000)
     save_visualization_as_png(D0, D1, "test_script.png")
 
 if __name__ == "__main__":
