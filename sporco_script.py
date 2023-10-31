@@ -6,6 +6,7 @@
 from __future__ import division
 from __future__ import print_function
 from builtins import input
+import argparse
 import pyfftw   # See https://github.com/pyFFTW/pyFFTW/issues/40
 import numpy as np
 from sporco.admm import cbpdn
@@ -92,7 +93,7 @@ def train_dictionary(train_ims, prev_weights = None, curr_iter = 0):
         #D1 = d.solve()
         #D0 = D1.squeeze()
         np.savez('dict_constants/d1_' + str(curr_iter + i*2500) + '.npz', d1=D1)
-        save_visualization_as_png(D0, D1, 'features/8_features' + str(i*2500))
+        save_visualization_as_png(D0, D1, 'features/8_features' + str(curr_iter + i*2500))
 
         print("DictLearn solve time: %.2fs" % d.timer.elapsed('solve'), "\n")
     return D0, S, D1
@@ -175,10 +176,15 @@ def save_visualization_as_png(D0, D1, output_path):
     plt.savefig(output_path, dpi=300, bbox_inches='tight')
     plt.close()
 
-def main():
+def main(dict_path, curr_iter):
     train_ims, test_ims = load_images()
-    D0, S, D1 = train_dictionary(train_ims, 'dict_constants/d1_34000.npz',34000)
+    D0, S, D1 = train_dictionary(train_ims, dict_path,curr_iter)
     save_visualization_as_png(D0, D1, "test_script.png")
 
 if __name__ == "__main__":
-    main()
+    parser = argparse.ArgumentParser(description='Process the dictionary file path.')
+    parser.add_argument('dict_path', type=str, help='Path to the most recent dictionary file')
+    parser.add_argument('curr_iter', type=int, help='Current iteration as an integer')
+
+    args = parser.parse_args()
+    main(args.dict_path, args.curr_iter)
