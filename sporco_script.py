@@ -49,7 +49,7 @@ def train_dictionary(train_ims, prev_weights = None, curr_iter = 0):
     else:
         D0 = np.random.randn(12,12,16)
 
-    for i in tqdm(range(20), desc = 'training'):
+    for i in tqdm(range(15), desc = 'training'):
         print(i)
         S = np.transpose(train_ims[:1000,:,:],(1,2,0))
 
@@ -82,7 +82,7 @@ def train_dictionary(train_ims, prev_weights = None, curr_iter = 0):
         xstep = cbpdn.ConvBPDNGradReg(D0n, S, lmbda, mu, optx)
         dstep = ccmod.ConvCnstrMOD(None, S, D0.shape, optd, method='cns')
 
-        for j in tqdm(range(2500), desc=f'Iteration {i}', leave=False):
+        for j in tqdm(range(5000), desc=f'Iteration {i}', leave=False):
             opt = dictlrn.DictLearn.Options({'Verbose': False, 'MaxMainIter': 1})
             d = dictlrn.DictLearn(xstep, dstep, opt)
             D1 = d.solve()
@@ -92,8 +92,8 @@ def train_dictionary(train_ims, prev_weights = None, curr_iter = 0):
         #d = dictlrn.DictLearn(xstep, dstep, opt)
         #D1 = d.solve()
         #D0 = D1.squeeze()
-        np.savez('dict_constants/d1_' + str(curr_iter + i*2500) + '.npz', d1=D1)
-        save_visualization_as_png(D0, D1, 'features/8_features' + str(curr_iter + i*2500))
+        np.savez('dict_constants/d1_' + str(curr_iter + i*5000) + '.npz', d1=D1)
+        save_visualization_as_png(D0, D1, 'features/8_features' + str(curr_iter + i*5000))
 
         print("DictLearn solve time: %.2fs" % d.timer.elapsed('solve'), "\n")
     return D0, S, D1
